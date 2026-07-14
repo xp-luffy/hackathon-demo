@@ -1,31 +1,44 @@
-# PRD — Sales Script Generator
+# PRD — Multi-Branch Clinic Operations Tool
 
 ## Problem
-Builders need a portfolio app that proves they can ship real AI. Salespeople need fast, stage-appropriate scripts without writing from scratch. This app solves both: a working AI tool a recruiter can try in 30 seconds.
+Clinic staff across multiple branches use disconnected spreadsheets and phone calls to manage appointments, patient records, stock, and rotas. This creates booking conflicts, lost visit history, stockouts, and no visibility into daily operations.
 
-## Target User
-Portfolio reviewer (recruiter / hiring manager) trying the live demo; secondarily, any sales rep writing MQL or SQL outreach.
+## Target Users
+| Role | Primary need |
+|---|---|
+| Receptionist | Book / reschedule appointments across branches |
+| Nurse | Record visit notes, check inventory |
+| Doctor | View patient history, add clinical notes |
+| Admin | Full ops view: dashboard, rota, all branches |
 
 ## Core Objects
-- **Lead** — prospect being targeted (name, company, stage, pain points, fit notes)
-- **Script** — AI-generated sales script tied to a lead (body, stage, version, confidence)
-- **Audit Log** — record of every generation and edit action
+- **Branch** — clinic location
+- **Staff** — employee with role, linked to a branch
+- **Patient** — demographics + visit history
+- **Appointment** — cross-branch booking with status
+- **Visit Note** — clinical note attached to an appointment
+- **Inventory Item** — per-branch stock with low-stock flag
+- **Shift** — staff rota entry (date + time + branch)
+- **Audit Log** — every create/update/delete, who + when + what
 
-## MVP Must-Haves
-- [ ] Lead qualifier form: name, company, stage (MQL/SQL), pain points, fit notes
-- [ ] Submit form → call AI → display generated script immediately
-- [ ] Copy-to-clipboard on script output
-- [ ] Homepage shows 4 seeded demo leads + scripts — no login required
-- [ ] Loading, empty, error states handled on every screen
-- [ ] Every button persists to the database; no dead UI
-- [ ] Deployed on Vercel — live URL works for a stranger
+## MVP Must-Haves (v1)
+- [ ] Appointments list across all branches with create / edit / cancel
+- [ ] Patient list with detail page and visit history
+- [ ] Add clinical note to a visit
+- [ ] Inventory list per branch with quantity adjustment
+- [ ] Low-stock flag auto-set when quantity < reorder threshold
+- [ ] Weekly shift rota — assign staff to shift slots
+- [ ] Ops dashboard: today's bookings, no-shows, low-stock alerts
+- [ ] Mark appointment as no-show
+- [ ] Audit log written on every data change
+- [ ] All screens handle loading / empty / error states
 
 ## Non-Goals (v1)
-- No CRM integration
-- No user accounts or login wall
-- No email sending
-- No team/multi-user features
-- No script performance tracking
+- SMS/email reminders
+- Staff login / role-gated screens (Sprint 5)
+- Billing or payments
+- Supplier reorder automation
+- AI features
 
-## Success Criteria
-A recruiter opens the live URL, sees the seeded demo scripts, fills in the qualifier form with a fake lead, clicks Generate, and receives a complete MQL or SQL script within 10 seconds — all without signing in. Pass = script appears and persists. Fail = any step produces a dead end or error with no recovery path.
+## Definition of Done
+A receptionist (demo, no login) opens the app, books a new appointment for an existing patient at a different branch, sees it appear instantly in the appointments list and on the ops dashboard, and the audit log contains one row recording the action. All five UI states are handled on every screen. No button is dead.

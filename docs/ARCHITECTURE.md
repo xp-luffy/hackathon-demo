@@ -1,30 +1,31 @@
 # Architecture
 
 ## Stack
-- **Frontend:** Next.js 14 (App Router) — Vercel-deployed
-- **Database:** Supabase (Postgres + RLS)
-- **AI:** OpenAI GPT-4o via server-side API route
+- **Frontend:** Next.js 14 (App Router) on Vercel
+- **Database + Auth:** Supabase (Postgres, RLS, Auth)
 - **Styling:** Tailwind CSS
+- **State:** React Server Components + `@supabase/ssr` for data fetching
 
-## Now vs Later
-**Now:** lead form → script generation → script display → history list
-**Later:** auth + per-user isolation, regenerate/versioning UI, email send, team workspace
+## Build Sequence
+| Phase | What ships |
+|---|---|
+| Now | DB schema, seed data, appointments CRUD, patient records, inventory, rota, dashboard — no login wall |
+| Next | Supabase Auth, role-based access, RLS owner policies |
+| Later | SMS reminders, AI slot suggestions, supplier reorder, report exports |
 
-## Key User Action — Step by Step
-1. Visitor lands on `/` — seeded demo scripts render from Supabase (no login)
-2. Visitor fills qualifier form and clicks **Generate Script**
-3. Next.js API route (`/api/generate`) receives form data
-4. Server composes a prompt; calls OpenAI GPT-4o with the lead context
-5. Response streamed back; script row inserted into `scripts` table with `confidence`, `source`, `review_status`
-6. Lead row inserted into `leads` table
-7. Audit log row written: `action=generate_script`
-8. Script output screen renders — copy-to-clipboard active
+## Key User Action — Cross-Branch Appointment Booking
+1. Receptionist opens `/appointments/new`
+2. Selects branch, searches for patient, picks doctor and time slot
+3. Form POST hits `/api/appointments` → validates fields server-side
+4. Row inserted into `appointments` with `status = 'scheduled'`
+5. Audit log row written (`action = 'create'`, `table_name = 'appointments'`)
+6. UI redirects to appointment detail; appointments list re-fetches and shows new row
+7. Ops dashboard counter increments on next load
 
 ## Layer Plan
-1. **Data first** — tables, RLS, seed rows (Sprint 1)
-2. **App logic** — form → API → insert → display (Sprint 1)
-3. **Smart features** — confidence scoring, regenerate, inline review (Sprint 2)
-4. **Auth + isolation** — lock-down sprint only after demo works (Sprint 3)
+1. **Data layer** — Postgres tables with constraints and RLS policies (source of truth)
+2. **App logic** — Next.js API routes enforce business rules (status transitions, low-stock recalc)
+3. **Smart features** — AI summary of visit notes added later; core runs without it
 
 ## Core Without AI
-If the OpenAI call fails, the app shows a clear error and lets the user retry. Leads persist regardless. Manually written scripts can be inserted directly — the DB and UI work independently of the AI.
+All CRUD, dashboard counters, no-show flags, and low-stock alerts are computed from DB queries. Removing the AI layer leaves a fully functional operations tool.

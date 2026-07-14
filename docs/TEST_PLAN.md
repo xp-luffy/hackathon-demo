@@ -1,35 +1,40 @@
 # Test Plan
 
-## Core Success Scenario (manual walkthrough)
-1. Open live URL as a logged-out stranger → homepage loads with 4 script cards
-2. Confirm cards show prospect name, company, stage badge, script body snippet
-3. Click **Generate New Script**
-4. Fill form: name=`Test Lead`, company=`Acme`, stage=`MQL`, pain_points=`low pipeline`, fit_notes=`50 reps`
-5. Click **Generate**
-6. Loading spinner appears immediately
-7. Within 10 s: script output screen renders with generated body and Copy button
-8. Click **Copy** → paste into a text editor → confirm full script text present
-9. Navigate to `/scripts` history → new script appears at top of list
-10. Confirm row exists in Supabase `scripts` table with correct `lead_id` and `stage`
-11. Confirm row exists in `audit_logs` with `action=generate_script`
+## Success Scenario (walk this after Sprint 4)
+1. Open app URL in an incognito window (no login)
+2. **Expect:** Dashboard loads with today's bookings count, no-show count, low-stock alerts — not a login page
+3. Click **New Appointment**
+4. Select "Southside Clinic", search for "Tom Gallagher", pick Dr. Ciara Walsh, set time 2 hours from now, reason "Follow-up"
+5. Submit → **Expect:** redirected to appointments list; new row appears at top
+6. Open `audit_logs` in Supabase dashboard → **Expect:** one row with `action = 'create'`, `table_name = 'appointments'`
+7. Click **Mark No-Show** on the new appointment → **Expect:** `no_show = true` in DB; dashboard no-show counter increments
+8. Open patient "Tom Gallagher" → Visit History shows the appointment
+9. Click **Add Note** → type a note → submit → refresh → note persists
 
-**Pass:** all 11 steps complete without error.
+## Empty State Tests
+- Delete all seed appointments → `/appointments` shows "No appointments booked yet" message
+- Set all inventory quantities above threshold → low-stock section on dashboard shows "All stock levels OK"
+- No shifts assigned for a branch → rota grid shows empty day cells, not a blank crash
 
----
+## Error State Tests
+- Submit appointment form with no patient selected → inline validation error, no DB write
+- Submit note form with empty text → inline error, no DB write
+- Simulate DB unavailable (disable Supabase row) → pages show "Unable to load data. Please refresh." not a white screen
 
-## Empty State
-- Delete all scripts rows in Supabase → reload `/scripts` → empty state message renders (not a blank page)
+## Inventory Test
+- Adjust item "Disposable Gloves" at Northside from 8 to 5 (below threshold 10) → `low_stock = true`, badge appears
+- Adjust back to 15 → `low_stock = false`, badge removed
 
-## Error States
-- Set `OPENAI_API_KEY` to an invalid value → submit form → error banner appears with retry option; no script row inserted; `generate_script_failed` written to audit_logs
-- Submit form with all fields blank → client-side validation blocks submission; no API call made
+## Rota Test
+- Assign Dr. Aoife Murphy a shift on tomorrow's date at Northside 09:00–17:00
+- Open rota weekly grid → shift appears in correct cell
+- Delete shift → cell clears
 
-## Data Persistence
-- Generate a script → hard-refresh the page → script still appears (server-fetched, not localStorage)
+## Audit Log Test
+- After each create/edit/cancel/no-show action above, check `audit_logs` in Supabase
+- **Expect:** one row per action with correct `action`, `table_name`, `record_id`, and non-null `new_values`
 
-## AI Field Integrity
-- Every generated script row has non-null `script_body_source`, numeric `script_body_confidence`, and `script_body_review_status = 'unreviewed'`
-
-## Security Smoke Test
-- Open browser DevTools → confirm no `OPENAI_API_KEY` or `SUPABASE_SERVICE_ROLE_KEY` present in any network response or JS bundle
-- Submit `pain_points` = `"); DROP TABLE leads; --` → confirm script generates normally, no DB error, value stored as plain text
+## Post-Sprint 5 Auth Tests
+- Log in as receptionist → `/patients/[id]` shows no "Add Note" button
+- Log in as doctor → "Add Note" button visible
+- Log out → `GET /appointments` returns 0 rows (RLS blocks unauthenticated reads)

@@ -1,24 +1,33 @@
 # Security
 
 ## Secret Handling
-- `OPENAI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` live in Vercel environment variables only
-- Never referenced in any client-side file; only accessed inside `/api/*` server routes
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `NEXT_PUBLIC_SUPABASE_URL` are the only values exposed to the browser — both are safe by design (protected by RLS)
+- All Supabase keys in environment variables (`.env.local`), never in client bundle
+- `SUPABASE_SERVICE_ROLE_KEY` used only in server-side API routes, never exposed to browser
+- LLM API keys server-side only
 
-## Permission Model (v1 — demo open)
-- All tables use permissive RLS: any visitor can read and write
-- Acceptable for demo-only; no real user PII stored in v1
-- Sprint 3 replaces all policies with `auth.uid() = user_id` — each user sees only their own rows
+## Permission Model
+| Role | Appointments | Clinical Notes | Inventory | Rota | Dashboard | Admin |
+|---|---|---|---|---|---|---|
+| Receptionist | R/W | — | R | R | R | — |
+| Nurse | R/W | R | R/W | R | R | — |
+| Doctor | R/W | R/W | R | R | R | — |
+| Admin | R/W | R/W | R/W | R/W | R/W | R/W |
+
+- v1 (demo): open RLS policies
+- Lock-down sprint: `auth.uid() = staff.user_id` + role column checked in API routes
 
 ## Approved Tools Rule
-- The generation API route calls `openai_chat_completion` only via a fixed server-side prompt template
-- No client input reaches the model without sanitisation — pain_points and fit_notes are truncated to 500 chars and stripped of injection patterns before interpolation
-- No `run_any` / `eval` / raw shell execution permitted
+- Agent may only call named tools from `docs/AGENTIC_LAYER.md`
+- No `run_any`, `exec`, or raw SQL from agent context
+- Every tool call writes to `audit_logs` before returning
 
 ## Audit Principle
-- Every `generate`, `edit`, and `regenerate` action writes a row to `audit_logs` before returning to the client
-- Failures also log with `action=generate_script_failed` and error meta
+- Every create / update / delete on core tables writes a row to `audit_logs` with `old_values` and `new_values`
+- `audit_logs` is append-only; no update/delete policies granted
 
-## What Cannot Be Fully Verified Pre-Launch
-- Prompt injection via adversarial `pain_points` input (mitigated by truncation; full red-team not done in v1 — flag before onboarding real users)
-- Rate-limiting on `/api/generate` (add Vercel Edge middleware in Sprint 3)
+## What Cannot Be Verified Without a Full Pentest
+- Rate-limiting effectiveness under load
+- All injection vectors in free-text note fields
+- PII data-at-rest encryption beyond Supabase defaults
+
+> If deploying with real patient data: stop and engage a qualified security reviewer before go-live.

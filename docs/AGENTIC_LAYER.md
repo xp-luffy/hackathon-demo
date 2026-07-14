@@ -1,31 +1,33 @@
 # Agentic Layer
 
-## Risk Levels & Actions
+## Risk Classification
 
-### Low — Auto (no approval needed)
-- **generate_script**: call OpenAI, insert script row, write audit log
-- **tag_stage**: classify lead as MQL or SQL from form input
-- **score_confidence**: apply rule-based confidence to new script
+| Action | Risk | Handling |
+|---|---|---|
+| Auto-tag appointment reason | Low | Auto — no approval |
+| Summarise visit note (AI) | Low | Auto-draft, `review_status = unreviewed` |
+| Flag low-stock item | Low | Auto on quantity save |
+| Create draft reorder request | Medium | Staff approval before sending |
+| Send SMS reminder to patient | Medium | Staff approval |
+| Cancel all appointments at a branch | High | Admin approval + confirmation dialog |
+| Delete patient record | Critical | Human-only, cannot be triggered by agent |
+| Bulk-delete or data export with PII | Critical | Human-only |
 
-### Medium — Light approval (user confirms)
-- **regenerate_script**: overwrite script body with new AI version (increments version, keeps prior)
-- **edit_script**: inline edit saved to DB — user action IS the approval
+## Named Tools (approved list)
+- `summarise_visit_note(note_id)` — calls LLM, writes `ai_summary` + source + confidence + `review_status = unreviewed`
+- `flag_low_stock(item_id)` — DB update only, no external call
+- `draft_reorder_request(item_id, quantity)` — creates a draft record for staff approval
 
-### High — Always approval before executing *(v1: not built)*
-- **send_script_by_email**: compose and dispatch via mail tool — requires explicit send confirmation
+## Approval Flow
+`Draft → Staff reviews in UI → Approves → Action executes → audit_log written`
 
-### Critical — Human only *(v1: not built)*
-- **delete_lead**: permanent removal — confirmation dialog + audit entry required
-- **bulk_export_PII**: export names/companies — manual only, logged
-
-## Named Tools (v1)
-- `openai_chat_completion` — script generation only; prompt template is server-side, never client-editable
-- `supabase_insert` — leads, scripts, audit_logs
-- `supabase_update` — script body (edit/regenerate)
-
-## Audit Log Fields
-`action`, `object_type`, `object_id`, `user_id`, `meta` (stage, version, confidence), `created_at`
+## Audit Log Fields (every agent action)
+```
+actor_staff_id, action, table_name, record_id,
+old_values (jsonb), new_values (jsonb), branch_id, created_at
+```
 
 ## v1 vs Later
-**v1:** generate + score + audit (auto-only actions)
-**Later:** email send (high-risk, approval gate), delete with confirmation
+- **v1:** low-risk auto-flags only (low_stock, no_show rule)
+- **Next:** AI visit note summary with review UI
+- **Later:** SMS reminders (medium risk, approval gate), reorder drafts
